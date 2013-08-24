@@ -1,5 +1,5 @@
-PyYAML
 gevent
 Routes
 WebOb
 glock
+requests

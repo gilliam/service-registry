@@ -18,7 +18,6 @@ patch_all(time=True)
 
 from optparse import OptionParser
 import time
-import yaml
 import requests
 import logging
 import sys
@@ -91,28 +90,42 @@ class ServiceRegistryApp(object):
         self.server.serve_forever()
 
 
+def _build_cluster_config(spec, node_name, node_port):
+    cluster = {}
+    for node in spec.split(','):
+        try:
+            name, port = node.split(':')
+        except TypeError:
+            name, port = node, node_port
+        cluster[name] = {'host': name, 'port': int(port)}
+    assert node_name in cluster, "local node not specified in cluster"
+    return cluster
+
+
 def main():
     parser = OptionParser()
-    parser.add_option("-c", dest="config", default='hera.yml',
-                      help="config file", metavar="FILE")
+    parser.add_option("-c", dest="cluster", default='',
+                      help="cluster nodes", metavar="HOSTS")
     parser.add_option("-n", "--name", dest="name",
                       help="node name", metavar="NODE")
     parser.add_option("-p", "--port", dest="port", type=int,
-                      help="node port", metavar="PORT")
+                      help="node port", metavar="PORT", default=3222)
     (options, args) = parser.parse_args()
 
     format = '%(asctime)s %(name)s %(levelname)s: %(message)s'
     logging.basicConfig(format=format, level=logging.DEBUG)
 
-    try:
-        with open(options.config) as fp:
-            config = yaml.load(fp)
-    except (OSError, IOError), err:
-        logging.exception("failed reading config")
-        sys.exit(1)
+    assert options.name, "must specify local name"
 
     app = ServiceRegistryApp(logging.getLogger('app'), Clock(),
-              options.name or config['name'],
-              options.port or config['port'],
-              config['cluster'])
+              options.name, options.port, _build_cluster_config(
+                  options.cluster, options.name, options.port))
     app.start()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except AssertionError, ae:
+        sys.exit(str(ae))
+
+

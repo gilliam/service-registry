@@ -95,7 +95,7 @@ def _build_cluster_config(spec, node_name, node_port):
     for node in spec.split(','):
         try:
             name, port = node.split(':')
-        except TypeError:
+        except ValueError:
             name, port = node, node_port
         cluster[name] = {'host': name, 'port': int(port)}
     assert node_name in cluster, "local node not specified in cluster"
@@ -111,11 +111,10 @@ def main():
     parser.add_option("-p", "--port", dest="port", type=int,
                       help="node port", metavar="PORT", default=3222)
     (options, args) = parser.parse_args()
+    assert options.name, "must specify local name"
 
     format = '%(asctime)s %(name)s %(levelname)s: %(message)s'
     logging.basicConfig(format=format, level=logging.DEBUG)
-
-    assert options.name, "must specify local name"
 
     app = ServiceRegistryApp(logging.getLogger('app'), Clock(),
               options.name, options.port, _build_cluster_config(
